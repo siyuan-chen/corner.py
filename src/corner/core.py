@@ -28,6 +28,8 @@ def corner_impl(
     range=None,
     weights=None,
     color="k",
+    color_label=None,
+    color_kwargs=None,
     hist_bin_factor=1,
     smooth=None,
     smooth1d=None,
@@ -36,6 +38,7 @@ def corner_impl(
     titles=None,
     show_titles=False,
     title_fmt=".2f",
+    title_quantiles=None,
     title_kwargs=None,
     truths=None,
     truth_color="#4682b4",
@@ -43,7 +46,9 @@ def corner_impl(
     quantiles=None,
     verbose=False,
     fig=None,
+    fig_title=None,
     max_n_ticks=5,
+    angle_ticks=45,
     top_ticks=False,
     use_math_text=False,
     reverse=False,
@@ -53,6 +58,8 @@ def corner_impl(
 ):
     if quantiles is None:
         quantiles = []
+    if title_quantiles is None:
+        title_quantiles = []
     if title_kwargs is None:
         title_kwargs = dict()
     if label_kwargs is None:
@@ -212,10 +219,10 @@ def corner_impl(
             if title_fmt is not None:
                 # Compute the quantiles for the title. This might redo
                 # unneeded computation but who cares.
-                q_16, q_50, q_84 = quantile(
-                    x, [0.16, 0.5, 0.84], weights=weights
-                )
-                q_m, q_p = q_50 - q_16, q_84 - q_50
+                if len(title_quantiles) != 3:
+                    title_quantiles = [0.16, 0.5, 0.84]
+                q_l, q_50, q_u = quantile(x, title_quantiles, weights=weights)
+                q_m, q_p = q_50 - q_l, q_u - q_50
 
                 # Format the quantile display.
                 fmt = "{{0:{0}}}".format(title_fmt).format
@@ -262,13 +269,13 @@ def corner_impl(
         if i < K - 1:
             if top_ticks:
                 ax.xaxis.set_ticks_position("top")
-                [l.set_rotation(45) for l in ax.get_xticklabels()]
+                [l.set_rotation(angle_ticks) for l in ax.get_xticklabels()]
             else:
                 ax.set_xticklabels([])
         else:
             if reverse:
                 ax.xaxis.tick_top()
-            [lbl.set_rotation(45) for lbl in ax.get_xticklabels()]
+            [lbl.set_rotation(angle_ticks) for lbl in ax.get_xticklabels()]
             if labels is not None:
                 if reverse:
                     if "labelpad" in label_kwargs.keys():
@@ -291,6 +298,8 @@ def corner_impl(
             ax.xaxis.set_major_formatter(
                 ScalarFormatter(useMathText=use_math_text)
             )
+
+            ax.tick_params(axis='both', labelsize='x-large')
 
         for j, y in enumerate(xs):
             if np.shape(xs)[0] == 1:
@@ -336,12 +345,14 @@ def corner_impl(
                     MaxNLocator(max_n_ticks, prune="lower")
                 )
 
+            ax.tick_params(axis='both', labelsize='x-large')
+
             if i < K - 1:
                 ax.set_xticklabels([])
             else:
                 if reverse:
                     ax.xaxis.tick_top()
-                [l.set_rotation(45) for l in ax.get_xticklabels()]
+                [l.set_rotation(angle_ticks) for l in ax.get_xticklabels()]
                 if labels is not None:
                     ax.set_xlabel(labels[j], **label_kwargs)
                     if reverse:
@@ -359,7 +370,7 @@ def corner_impl(
             else:
                 if reverse:
                     ax.yaxis.tick_right()
-                [l.set_rotation(45) for l in ax.get_yticklabels()]
+                [l.set_rotation(90-angle_ticks) for l in ax.get_yticklabels()]
                 if labels is not None:
                     if reverse:
                         ax.set_ylabel(labels[i], rotation=-90, **label_kwargs)
@@ -381,6 +392,16 @@ def corner_impl(
             reverse=reverse,
             marker="s",
             color=truth_color,
+        )
+
+    if fig_title is not None:
+        fig.suptitle(str(fig_title), fontsize='xx-large')
+
+    if color_label is not None:
+        axes[0,0].axvline(0, color=color, label=color_label, **color_kwargs)
+        fig.legend(
+            loc=1, bbox_to_anchor=(0.97, 0.97), fontsize='xx-large',
+            framealpha=1
         )
 
     return fig
